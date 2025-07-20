@@ -492,7 +492,7 @@ def test_voting_system():
     test_report = {
         "lat": 19.0760,
         "lng": 72.8777,
-        "severity": "High"
+        "severity": "Severe"
     }
     
     try:
