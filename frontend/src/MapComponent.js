@@ -211,12 +211,13 @@ function PhotoUploadModal({ isOpen, onClose, onPhotoSelect }) {
   );
 }
 
-// Enhanced Report Modal Component
+// Enhanced Report Modal Component with Clear Options
 function ReportModal({ isOpen, position, onClose, onSubmit }) {
   const [severity, setSeverity] = useState('Medium');
   const [photo, setPhoto] = useState(null);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reportType, setReportType] = useState('quick'); // 'quick' or 'detailed'
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -233,6 +234,32 @@ function ReportModal({ isOpen, position, onClose, onSubmit }) {
       // Reset form
       setSeverity('Medium');
       setPhoto(null);
+      setReportType('quick');
+      onClose();
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      alert('Failed to submit report. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleQuickSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const reportData = {
+        lat: position.lat,
+        lng: position.lng,
+        severity: severity
+        // No photo for quick submit
+      };
+      
+      await onSubmit(reportData);
+      
+      // Reset form
+      setSeverity('Medium');
+      setPhoto(null);
+      setReportType('quick');
       onClose();
     } catch (error) {
       console.error('Error submitting report:', error);
@@ -259,6 +286,27 @@ function ReportModal({ isOpen, position, onClose, onSubmit }) {
               <p>{position?.lat.toFixed(4)}, {position?.lng.toFixed(4)}</p>
             </div>
 
+            {/* Report Type Selection */}
+            <div className="report-type-section">
+              <label><strong>🚀 Choose Report Type:</strong></label>
+              <div className="report-type-options">
+                <button
+                  className={`report-type-btn ${reportType === 'quick' ? 'active' : ''}`}
+                  onClick={() => setReportType('quick')}
+                >
+                  ⚡ Quick Report
+                  <span className="report-type-desc">Just mark the location</span>
+                </button>
+                <button
+                  className={`report-type-btn ${reportType === 'detailed' ? 'active' : ''}`}
+                  onClick={() => setReportType('detailed')}
+                >
+                  📸 Detailed Report
+                  <span className="report-type-desc">Add photo evidence</span>
+                </button>
+              </div>
+            </div>
+
             <div className="severity-section">
               <label><strong>⚡ Severity Level:</strong></label>
               <div className="severity-options">
@@ -282,40 +330,70 @@ function ReportModal({ isOpen, position, onClose, onSubmit }) {
               </div>
             </div>
 
-            <div className="photo-section">
-              <label><strong>📸 Visual Proof (Optional):</strong></label>
-              {photo ? (
-                <div className="photo-attached">
-                  <img src={photo} alt="Attached" className="attached-preview" />
+            {/* Photo Section - Only show for detailed reports */}
+            {reportType === 'detailed' && (
+              <div className="photo-section">
+                <label><strong>📸 Add Visual Evidence:</strong></label>
+                {photo ? (
+                  <div className="photo-attached">
+                    <img src={photo} alt="Attached" className="attached-preview" />
+                    <button 
+                      onClick={() => setPhoto(null)} 
+                      className="remove-photo-btn"
+                    >
+                      ❌ Remove Photo
+                    </button>
+                  </div>
+                ) : (
                   <button 
-                    onClick={() => setPhoto(null)} 
-                    className="remove-photo-btn"
+                    onClick={() => setShowPhotoModal(true)} 
+                    className="add-photo-btn"
                   >
-                    ❌ Remove Photo
+                    📷 Take or Select Photo
                   </button>
-                </div>
-              ) : (
-                <button 
-                  onClick={() => setShowPhotoModal(true)} 
-                  className="add-photo-btn"
-                >
-                  📷 Add Photo Proof
-                </button>
-              )}
-              <p className="photo-hint">Photos help verify the situation for other users</p>
-            </div>
+                )}
+                <p className="photo-hint">
+                  📸 Visual proof helps other users better understand the situation
+                </p>
+              </div>
+            )}
 
             <div className="report-actions">
-              <button 
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="submit-report-btn"
-              >
-                {isSubmitting ? '📤 Submitting...' : '📤 Submit Report'}
-              </button>
+              {reportType === 'quick' ? (
+                <button 
+                  onClick={handleQuickSubmit}
+                  disabled={isSubmitting}
+                  className="submit-report-btn quick"
+                >
+                  {isSubmitting ? '⚡ Submitting...' : '⚡ Quick Submit'}
+                </button>
+              ) : (
+                <button 
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="submit-report-btn detailed"
+                >
+                  {isSubmitting ? '📸 Submitting...' : '📸 Submit with Evidence'}
+                </button>
+              )}
               <button onClick={onClose} className="cancel-report-btn">
                 Cancel
               </button>
+            </div>
+
+            {/* Help Text */}
+            <div className="report-help">
+              {reportType === 'quick' ? (
+                <p className="help-text">
+                  ⚡ <strong>Quick Report:</strong> Fast way to mark waterlogged areas. 
+                  Other users will see your location and severity rating.
+                </p>
+              ) : (
+                <p className="help-text">
+                  📸 <strong>Detailed Report:</strong> Add photo evidence to help others 
+                  see actual conditions. More credible and helpful!
+                </p>
+              )}
             </div>
           </div>
         </div>
