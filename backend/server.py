@@ -64,15 +64,30 @@ class StatusCheckCreate(BaseModel):
 
 # Waterlogging report routes
 @api_router.get("/reports", response_model=List[WaterloggingReport])
-async def get_waterlogging_reports():
-    """Get all active waterlogging reports"""
+async def get_waterlogging_reports(time_filter: Optional[str] = None):
+    """Get all active waterlogging reports with optional time filtering"""
     current_time = datetime.utcnow()
     
     # Remove expired reports
     await db.waterlogging_reports.delete_many({"expires_at": {"$lt": current_time}})
     
+    # Build query based on time filter
+    query = {"expires_at": {"$gte": current_time}}
+    
+    if time_filter:
+        if time_filter == "1h":
+            time_threshold = current_time - timedelta(hours=1)
+        elif time_filter == "6h":
+            time_threshold = current_time - timedelta(hours=6)
+        elif time_filter == "24h":
+            time_threshold = current_time - timedelta(hours=24)
+        else:
+            time_threshold = current_time - timedelta(hours=24)  # Default to 24h
+            
+        query["created_at"] = {"$gte": time_threshold}
+    
     # Get remaining active reports
-    reports = await db.waterlogging_reports.find({"expires_at": {"$gte": current_time}}).to_list(1000)
+    reports = await db.waterlogging_reports.find(query).to_list(1000)
     return [WaterloggingReport(**report) for report in reports]
 
 @api_router.post("/reports", response_model=WaterloggingReport)
@@ -90,6 +105,58 @@ async def create_waterlogging_report(report: WaterloggingReportCreate):
     await db.waterlogging_reports.insert_one(new_report.dict())
     
     return new_report
+
+# Comment routes
+@api_router.get("/reports/{report_id}/comments", response_model=List[Comment])
+async def get_comments(report_id: str):
+    """Get all comments for a specific report"""
+    comments = await db.comments.find({"report_id": report_id}).to_list(100)
+    return [Comment(**comment) for comment in comments]
+
+@api_router.post("/reports/{report_id}/comments", response_model=Comment)
+async def create_comment(report_id: str, comment: CommentCreate):
+    """Add a new comment to a specific report"""
+    # Verify the report exists
+    existing_report = await db.waterlogging_reports.find_one({"id": report_id})
+    if not existing_report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    # Create comment
+    comment_data = comment.dict()
+    comment_data["report_id"] = report_id
+    new_comment = Comment(**comment_data)
+    
+    # Insert into database
+    await db.comments.insert_one(new_comment.dict())
+    
+    return new_comment
+
+# Voting routes
+@api_router.post("/reports/{report_id}/vote")
+async def vote_on_report(report_id: str, vote: VoteRequest):
+    """Vote on report accuracy"""
+    # Verify the report exists
+    report = await db.waterlogging_reports.find_one({"id": report_id})
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    # Update vote counts
+    if vote.vote_type == "up":
+        await db.waterlogging_reports.update_one(
+            {"id": report_id},
+            {"$inc": {"accuracy_score": 1, "total_votes": 1}}
+        )
+    elif vote.vote_type == "down":
+        await db.waterlogging_reports.update_one(
+            {"id": report_id},
+            {"$inc": {"accuracy_score": -1, "total_votes": 1}}
+        )
+    else:
+        raise HTTPException(status_code=400, detail="Vote type must be 'up' or 'down'")
+    
+    # Return updated report
+    updated_report = await db.waterlogging_reports.find_one({"id": report_id})
+    return {"message": "Vote recorded", "accuracy_score": updated_report["accuracy_score"], "total_votes": updated_report["total_votes"]}
 
 # Original status check routes
 @api_router.get("/")
