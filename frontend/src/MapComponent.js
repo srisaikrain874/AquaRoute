@@ -404,7 +404,7 @@ const MapComponent = () => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         
-        {viewMode === 'heatmap' && heatmapData.length > 0 && (
+        {/*viewMode === 'heatmap' && heatmapData.length > 0 && (
           <HeatmapLayer
             fitBoundsOnLoad
             fitBoundsOnUpdate
@@ -415,7 +415,7 @@ const MapComponent = () => {
             radius={20}
             max={1}
           />
-        )}
+        )*/}
         
         {viewMode === 'markers' && reports.map(report => (
           <Marker 
