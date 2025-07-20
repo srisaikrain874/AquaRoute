@@ -754,6 +754,29 @@ def main():
     all_results.failed += result.failed
     all_results.errors.extend(result.errors)
     
+    # NEW FEATURE TESTS
+    
+    # Test 9: Comments System
+    print("\n📍 Testing Comments System (NEW FEATURE)")
+    result = test_comments_system()
+    all_results.passed += result.passed
+    all_results.failed += result.failed
+    all_results.errors.extend(result.errors)
+    
+    # Test 10: Voting System
+    print("\n📍 Testing Voting System (NEW FEATURE)")
+    result = test_voting_system()
+    all_results.passed += result.passed
+    all_results.failed += result.failed
+    all_results.errors.extend(result.errors)
+    
+    # Test 11: Time-Based Filtering
+    print("\n📍 Testing Time-Based Filtering (NEW FEATURE)")
+    result = test_time_filtering()
+    all_results.passed += result.passed
+    all_results.failed += result.failed
+    all_results.errors.extend(result.errors)
+    
     # Final summary
     success = all_results.summary()
     
