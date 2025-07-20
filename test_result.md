@@ -216,11 +216,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Waterlogging Report API Endpoints"
-    - "MongoDB TTL Index for Auto-Expiring Reports"
     - "Interactive Leaflet Map Component"
+    - "AquaRoute UI Design"
   stuck_tasks: []
-  test_all: true
+  test_all: false
   test_priority: "high_first"
 
 agent_communication:
@@ -228,3 +227,5 @@ agent_communication:
     message: "Completed initial implementation of AquaRoute waterlogging map. Backend has waterlogging report CRUD APIs with auto-expiring mechanism. Frontend has interactive Leaflet map with click-to-report functionality, severity levels, and real-time updates. Ready for backend testing first, then frontend testing."
   - agent: "testing"
     message: "BACKEND TESTING COMPLETED SUCCESSFULLY - All backend API endpoints are working perfectly. Comprehensive testing of 15 test cases passed: API root endpoint, GET/POST reports endpoints, severity validation, required field validation, data persistence, TTL index functionality, and error handling. MongoDB integration is solid with proper TTL index configuration. Backend is production-ready. Created /app/backend_test.py for future regression testing."
+  - agent: "testing"
+    message: "NEW FEATURES COMPREHENSIVE TESTING COMPLETED - All 33 backend tests passed successfully! Tested and verified 4 major new features: 1) Comments System (8 tests) - GET/POST comments with validation, 200-char limit, error handling. 2) Voting System (5 tests) - Up/down voting, accuracy_score tracking, vote counting. 3) Time-Based Filtering (5 tests) - 1h/6h/24h filters with fallback handling. 4) Enhanced Report Model - accuracy_score and total_votes fields integration. All new APIs working correctly with proper error handling, data validation, and persistence. Backend is fully functional and production-ready."
