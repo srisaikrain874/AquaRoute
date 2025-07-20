@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -8,8 +8,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List
 import uuid
-from datetime import datetime
-
+from datetime import datetime, timedelta
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -25,8 +24,20 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-
 # Define Models
+class WaterloggingReport(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    lat: float
+    lng: float
+    severity: str = Field(default="Medium")  # Low, Medium, Severe
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(days=1))
+
+class WaterloggingReportCreate(BaseModel):
+    lat: float
+    lng: float
+    severity: str = "Medium"
+
 class StatusCheck(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     client_name: str
@@ -35,10 +46,39 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
-# Add your routes to the router instead of directly to app
+# Waterlogging report routes
+@api_router.get("/reports", response_model=List[WaterloggingReport])
+async def get_waterlogging_reports():
+    """Get all active waterlogging reports"""
+    current_time = datetime.utcnow()
+    
+    # Remove expired reports
+    await db.waterlogging_reports.delete_many({"expires_at": {"$lt": current_time}})
+    
+    # Get remaining active reports
+    reports = await db.waterlogging_reports.find({"expires_at": {"$gte": current_time}}).to_list(1000)
+    return [WaterloggingReport(**report) for report in reports]
+
+@api_router.post("/reports", response_model=WaterloggingReport)
+async def create_waterlogging_report(report: WaterloggingReportCreate):
+    """Create a new waterlogging report"""
+    # Validate severity
+    if report.severity not in ["Low", "Medium", "Severe"]:
+        raise HTTPException(status_code=400, detail="Severity must be Low, Medium, or Severe")
+    
+    # Create report with auto-expire
+    report_data = report.dict()
+    new_report = WaterloggingReport(**report_data)
+    
+    # Insert into database
+    await db.waterlogging_reports.insert_one(new_report.dict())
+    
+    return new_report
+
+# Original status check routes
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "AquaRoute API - Real-time waterlogging reports"}
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
@@ -69,6 +109,16 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+@app.on_event("startup")
+async def startup_db():
+    """Create TTL index for auto-expiring reports"""
+    try:
+        # Create TTL index on expires_at field for automatic document deletion
+        await db.waterlogging_reports.create_index("expires_at", expireAfterSeconds=0)
+        logger.info("Created TTL index for waterlogging reports")
+    except Exception as e:
+        logger.error(f"Error creating TTL index: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
