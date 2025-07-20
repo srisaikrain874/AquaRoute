@@ -32,11 +32,27 @@ class WaterloggingReport(BaseModel):
     severity: str = Field(default="Medium")  # Low, Medium, Severe
     created_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(days=1))
+    accuracy_score: int = Field(default=0)  # For voting system
+    total_votes: int = Field(default=0)
 
 class WaterloggingReportCreate(BaseModel):
     lat: float
     lng: float
     severity: str = "Medium"
+
+class Comment(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    report_id: str
+    text: str = Field(max_length=200)
+    author: str = Field(default="Anonymous")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CommentCreate(BaseModel):
+    text: str = Field(max_length=200)
+    author: Optional[str] = "Anonymous"
+
+class VoteRequest(BaseModel):
+    vote_type: str  # "up" or "down"
 
 class StatusCheck(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
