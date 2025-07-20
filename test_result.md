@@ -107,27 +107,33 @@ user_problem_statement: "Build AquaRoute - A Real-Time, Crowdsourced Waterloggin
 backend:
   - task: "Waterlogging Report API Endpoints"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented waterlogging report model with lat/lng coordinates, severity levels (Low/Medium/Severe), auto-expire after 24 hours using MongoDB TTL index. Created GET /api/reports and POST /api/reports endpoints."
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE BACKEND TESTING COMPLETED - All 15 API tests passed successfully. Verified: GET /api/ returns AquaRoute welcome message, GET /api/reports fetches active reports, POST /api/reports creates reports with proper validation. Tested all severity levels (Low/Medium/Severe), invalid severity rejection (400 error), missing required fields validation (422 error), data persistence between create/fetch operations, malformed JSON handling, and 24-hour expiry timestamp calculation. All endpoints working correctly with proper error handling and data integrity."
 
   - task: "MongoDB TTL Index for Auto-Expiring Reports"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented MongoDB TTL (Time To Live) index on expires_at field to automatically delete reports after 24 hours. Setup in startup event."
+      - working: true
+        agent: "testing"
+        comment: "TTL INDEX VERIFICATION COMPLETED - Successfully verified TTL index exists on expires_at field with expireAfterSeconds=0 configuration. Index is properly created during startup event. MongoDB collection 'waterlogging_reports' is operational with 5 test documents. Auto-expiring mechanism is correctly implemented and functional."
 
 frontend:
   - task: "Interactive Leaflet Map Component"
