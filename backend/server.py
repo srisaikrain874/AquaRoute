@@ -280,7 +280,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
-)
+)        
 
 # Configure logging
 logging.basicConfig(
