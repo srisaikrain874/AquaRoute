@@ -352,6 +352,344 @@ def test_malformed_json():
     
     return results
 
+def test_comments_system():
+    """Test Comments System - GET and POST /api/reports/{report_id}/comments"""
+    results = TestResults()
+    
+    # First create a report to comment on
+    test_report = {
+        "lat": 19.0760,
+        "lng": 72.8777,
+        "severity": "Medium"
+    }
+    
+    try:
+        # Create report
+        create_response = requests.post(
+            f"{API_URL}/reports", 
+            json=test_report,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if create_response.status_code != 200:
+            results.fail_test("Comments test setup", f"Failed to create test report: {create_response.status_code}")
+            return results
+            
+        report_id = create_response.json()["id"]
+        
+        # Test 1: GET comments for report (should be empty initially)
+        get_response = requests.get(f"{API_URL}/reports/{report_id}/comments", timeout=10)
+        
+        if get_response.status_code == 200:
+            comments = get_response.json()
+            if isinstance(comments, list) and len(comments) == 0:
+                results.pass_test("GET /api/reports/{report_id}/comments returns empty list initially")
+            else:
+                results.fail_test("GET comments initial state", f"Expected empty list, got: {comments}")
+        else:
+            results.fail_test("GET comments status", f"Expected 200, got {get_response.status_code}")
+        
+        # Test 2: POST comment with valid data
+        comment_data = {
+            "text": "This waterlogging is quite severe, avoid this area during heavy rains!",
+            "author": "LocalResident"
+        }
+        
+        post_response = requests.post(
+            f"{API_URL}/reports/{report_id}/comments",
+            json=comment_data,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if post_response.status_code == 200:
+            comment = post_response.json()
+            required_fields = ["id", "report_id", "text", "author", "created_at"]
+            missing_fields = [field for field in required_fields if field not in comment]
+            
+            if not missing_fields:
+                results.pass_test("POST /api/reports/{report_id}/comments creates comment with all required fields")
+                
+                if comment["text"] == comment_data["text"] and comment["author"] == comment_data["author"]:
+                    results.pass_test("POST comment preserves text and author")
+                else:
+                    results.fail_test("POST comment data integrity", "Text or author doesn't match")
+                    
+                if comment["report_id"] == report_id:
+                    results.pass_test("POST comment links to correct report")
+                else:
+                    results.fail_test("POST comment report_id", f"Expected {report_id}, got {comment['report_id']}")
+            else:
+                results.fail_test("POST comment missing fields", f"Missing: {missing_fields}")
+        else:
+            results.fail_test("POST comment status", f"Expected 200, got {post_response.status_code}")
+        
+        # Test 3: GET comments after posting (should return the comment)
+        get_after_response = requests.get(f"{API_URL}/reports/{report_id}/comments", timeout=10)
+        
+        if get_after_response.status_code == 200:
+            comments = get_after_response.json()
+            if isinstance(comments, list) and len(comments) == 1:
+                results.pass_test("GET comments returns posted comment")
+                
+                if comments[0]["text"] == comment_data["text"]:
+                    results.pass_test("GET comments data persistence")
+                else:
+                    results.fail_test("GET comments persistence", "Comment text doesn't match")
+            else:
+                results.fail_test("GET comments after post", f"Expected list with 1 comment, got: {len(comments) if isinstance(comments, list) else 'not a list'}")
+        else:
+            results.fail_test("GET comments after post status", f"Expected 200, got {get_after_response.status_code}")
+        
+        # Test 4: POST comment with long text (200 char limit)
+        long_comment = {
+            "text": "A" * 201,  # 201 characters - should fail
+            "author": "TestUser"
+        }
+        
+        long_response = requests.post(
+            f"{API_URL}/reports/{report_id}/comments",
+            json=long_comment,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if long_response.status_code == 422:  # Validation error
+            results.pass_test("POST comment rejects text longer than 200 characters")
+        else:
+            results.fail_test("POST comment text limit", f"Expected 422 for long text, got {long_response.status_code}")
+        
+        # Test 5: POST comment to non-existent report
+        fake_report_id = "non-existent-report-id"
+        fake_comment = {
+            "text": "This should fail",
+            "author": "TestUser"
+        }
+        
+        fake_response = requests.post(
+            f"{API_URL}/reports/{fake_report_id}/comments",
+            json=fake_comment,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if fake_response.status_code == 404:
+            results.pass_test("POST comment to non-existent report returns 404")
+        else:
+            results.fail_test("POST comment invalid report", f"Expected 404, got {fake_response.status_code}")
+            
+    except Exception as e:
+        results.fail_test("Comments system connection", str(e))
+    
+    return results
+
+def test_voting_system():
+    """Test Voting System - POST /api/reports/{report_id}/vote"""
+    results = TestResults()
+    
+    # First create a report to vote on
+    test_report = {
+        "lat": 19.0760,
+        "lng": 72.8777,
+        "severity": "High"
+    }
+    
+    try:
+        # Create report
+        create_response = requests.post(
+            f"{API_URL}/reports", 
+            json=test_report,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if create_response.status_code != 200:
+            results.fail_test("Voting test setup", f"Failed to create test report: {create_response.status_code}")
+            return results
+            
+        report_data = create_response.json()
+        report_id = report_data["id"]
+        
+        # Verify initial vote counts
+        if "accuracy_score" in report_data and "total_votes" in report_data:
+            if report_data["accuracy_score"] == 0 and report_data["total_votes"] == 0:
+                results.pass_test("New report has initial vote counts (accuracy_score=0, total_votes=0)")
+            else:
+                results.fail_test("Initial vote counts", f"Expected 0,0 got {report_data['accuracy_score']},{report_data['total_votes']}")
+        else:
+            results.fail_test("Vote fields missing", "accuracy_score or total_votes not in report")
+        
+        # Test 1: Vote UP on report
+        up_vote = {"vote_type": "up"}
+        
+        up_response = requests.post(
+            f"{API_URL}/reports/{report_id}/vote",
+            json=up_vote,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if up_response.status_code == 200:
+            vote_result = up_response.json()
+            if "accuracy_score" in vote_result and "total_votes" in vote_result:
+                if vote_result["accuracy_score"] == 1 and vote_result["total_votes"] == 1:
+                    results.pass_test("POST vote 'up' increases accuracy_score and total_votes")
+                else:
+                    results.fail_test("Vote up counts", f"Expected 1,1 got {vote_result['accuracy_score']},{vote_result['total_votes']}")
+            else:
+                results.fail_test("Vote up response", "Missing accuracy_score or total_votes in response")
+        else:
+            results.fail_test("Vote up status", f"Expected 200, got {up_response.status_code}")
+        
+        # Test 2: Vote DOWN on report
+        down_vote = {"vote_type": "down"}
+        
+        down_response = requests.post(
+            f"{API_URL}/reports/{report_id}/vote",
+            json=down_vote,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if down_response.status_code == 200:
+            vote_result = down_response.json()
+            if "accuracy_score" in vote_result and "total_votes" in vote_result:
+                if vote_result["accuracy_score"] == 0 and vote_result["total_votes"] == 2:
+                    results.pass_test("POST vote 'down' decreases accuracy_score and increases total_votes")
+                else:
+                    results.fail_test("Vote down counts", f"Expected 0,2 got {vote_result['accuracy_score']},{vote_result['total_votes']}")
+            else:
+                results.fail_test("Vote down response", "Missing accuracy_score or total_votes in response")
+        else:
+            results.fail_test("Vote down status", f"Expected 200, got {down_response.status_code}")
+        
+        # Test 3: Invalid vote type
+        invalid_vote = {"vote_type": "invalid"}
+        
+        invalid_response = requests.post(
+            f"{API_URL}/reports/{report_id}/vote",
+            json=invalid_vote,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if invalid_response.status_code == 400:
+            results.pass_test("POST vote with invalid vote_type returns 400")
+        else:
+            results.fail_test("Invalid vote type", f"Expected 400, got {invalid_response.status_code}")
+        
+        # Test 4: Vote on non-existent report
+        fake_report_id = "non-existent-report-id"
+        fake_vote = {"vote_type": "up"}
+        
+        fake_response = requests.post(
+            f"{API_URL}/reports/{fake_report_id}/vote",
+            json=fake_vote,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if fake_response.status_code == 404:
+            results.pass_test("POST vote on non-existent report returns 404")
+        else:
+            results.fail_test("Vote invalid report", f"Expected 404, got {fake_response.status_code}")
+            
+    except Exception as e:
+        results.fail_test("Voting system connection", str(e))
+    
+    return results
+
+def test_time_filtering():
+    """Test Time-Based Filtering - GET /api/reports?time_filter=1h|6h|24h"""
+    results = TestResults()
+    
+    try:
+        # Test 1: Time filter 1h
+        response_1h = requests.get(f"{API_URL}/reports?time_filter=1h", timeout=10)
+        
+        if response_1h.status_code == 200:
+            reports_1h = response_1h.json()
+            if isinstance(reports_1h, list):
+                results.pass_test("GET /api/reports?time_filter=1h returns list")
+            else:
+                results.fail_test("Time filter 1h format", f"Expected list, got {type(reports_1h)}")
+        else:
+            results.fail_test("Time filter 1h status", f"Expected 200, got {response_1h.status_code}")
+        
+        # Test 2: Time filter 6h
+        response_6h = requests.get(f"{API_URL}/reports?time_filter=6h", timeout=10)
+        
+        if response_6h.status_code == 200:
+            reports_6h = response_6h.json()
+            if isinstance(reports_6h, list):
+                results.pass_test("GET /api/reports?time_filter=6h returns list")
+            else:
+                results.fail_test("Time filter 6h format", f"Expected list, got {type(reports_6h)}")
+        else:
+            results.fail_test("Time filter 6h status", f"Expected 200, got {response_6h.status_code}")
+        
+        # Test 3: Time filter 24h
+        response_24h = requests.get(f"{API_URL}/reports?time_filter=24h", timeout=10)
+        
+        if response_24h.status_code == 200:
+            reports_24h = response_24h.json()
+            if isinstance(reports_24h, list):
+                results.pass_test("GET /api/reports?time_filter=24h returns list")
+            else:
+                results.fail_test("Time filter 24h format", f"Expected list, got {type(reports_24h)}")
+        else:
+            results.fail_test("Time filter 24h status", f"Expected 200, got {response_24h.status_code}")
+        
+        # Test 4: Invalid time filter (should default to 24h)
+        response_invalid = requests.get(f"{API_URL}/reports?time_filter=invalid", timeout=10)
+        
+        if response_invalid.status_code == 200:
+            reports_invalid = response_invalid.json()
+            if isinstance(reports_invalid, list):
+                results.pass_test("GET /api/reports?time_filter=invalid returns list (defaults to 24h)")
+            else:
+                results.fail_test("Invalid time filter format", f"Expected list, got {type(reports_invalid)}")
+        else:
+            results.fail_test("Invalid time filter status", f"Expected 200, got {response_invalid.status_code}")
+        
+        # Test 5: Create a fresh report and verify it appears in all time filters
+        fresh_report = {
+            "lat": 18.5204,
+            "lng": 73.8567,
+            "severity": "Medium"
+        }
+        
+        create_response = requests.post(
+            f"{API_URL}/reports", 
+            json=fresh_report,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if create_response.status_code == 200:
+            fresh_report_id = create_response.json()["id"]
+            
+            # Check if fresh report appears in 1h filter
+            fresh_1h_response = requests.get(f"{API_URL}/reports?time_filter=1h", timeout=10)
+            if fresh_1h_response.status_code == 200:
+                fresh_reports_1h = fresh_1h_response.json()
+                found_in_1h = any(report["id"] == fresh_report_id for report in fresh_reports_1h)
+                
+                if found_in_1h:
+                    results.pass_test("Fresh report appears in 1h time filter")
+                else:
+                    results.fail_test("Fresh report 1h filter", "Fresh report not found in 1h filter")
+            else:
+                results.fail_test("Fresh report 1h check", f"Failed to get 1h filtered reports: {fresh_1h_response.status_code}")
+        else:
+            results.fail_test("Time filter test setup", f"Failed to create fresh report: {create_response.status_code}")
+            
+    except Exception as e:
+        results.fail_test("Time filtering connection", str(e))
+    
+    return results
+
 def main():
     """Run all backend tests"""
     print("🧪 Starting AquaRoute Backend API Tests")
