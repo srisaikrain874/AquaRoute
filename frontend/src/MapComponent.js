@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
-import HeatmapLayer from 'react-leaflet-heatmap-layer-v3';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import axios from 'axios';
