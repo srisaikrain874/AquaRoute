@@ -12,7 +12,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
 
-// Custom icons for different severity levels
+// Custom icons for different severity levels with photo indicator
 const severityIcons = {
   Low: new L.Icon({
     iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
@@ -46,10 +46,295 @@ const severityIcons = {
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API_URL = `${BACKEND_URL}/api/reports`;
 
-// Component for handling location centering
+// Photo Upload Modal Component
+function PhotoUploadModal({ isOpen, onClose, onPhotoSelect }) {
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [useCamera, setUseCamera] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } // Use back camera on mobile
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setCameraStream(stream);
+        setUseCamera(true);
+      }
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      alert('Unable to access camera. Please use file upload instead.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setUseCamera(false);
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    if (video && canvas) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0);
+      
+      canvas.toBlob((blob) => {
+        const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+        handlePhotoSelect(file);
+      }, 'image/jpeg', 0.8);
+    }
+  };
+
+  const handlePhotoSelect = (file) => {
+    setSelectedPhoto(file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => setPreview(e.target.result);
+    reader.readAsDataURL(file);
+    
+    stopCamera();
+  };
+
+  const convertToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleUpload = async () => {
+    if (!selectedPhoto) return;
+
+    setIsUploading(true);
+    try {
+      const base64 = await convertToBase64(selectedPhoto);
+      onPhotoSelect(base64);
+      onClose();
+    } catch (error) {
+      console.error('Error converting photo:', error);
+      alert('Failed to process photo. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleClose = () => {
+    stopCamera();
+    setSelectedPhoto(null);
+    setPreview(null);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="photo-modal">
+      <div className="photo-modal-content">
+        <div className="photo-modal-header">
+          <h3>📸 Add Visual Proof</h3>
+          <button onClick={handleClose} className="close-btn">✕</button>
+        </div>
+
+        <div className="photo-options">
+          {!useCamera && !selectedPhoto && (
+            <>
+              <button onClick={startCamera} className="camera-btn">
+                📷 Use Camera
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="file-btn">
+                🖼️ Select Photo
+              </button>
+            </>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => e.target.files[0] && handlePhotoSelect(e.target.files[0])}
+            style={{ display: 'none' }}
+          />
+        </div>
+
+        {useCamera && (
+          <div className="camera-section">
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline
+              className="camera-video"
+            />
+            <div className="camera-controls">
+              <button onClick={capturePhoto} className="capture-btn">📷 Capture</button>
+              <button onClick={stopCamera} className="cancel-camera-btn">Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {preview && (
+          <div className="photo-preview">
+            <img src={preview} alt="Selected" className="preview-image" />
+            <div className="preview-controls">
+              <button 
+                onClick={handleUpload} 
+                disabled={isUploading}
+                className="upload-photo-btn"
+              >
+                {isUploading ? 'Processing...' : 'Use This Photo'}
+              </button>
+              <button onClick={() => {setSelectedPhoto(null); setPreview(null);}} className="retake-btn">
+                🔄 Choose Different Photo
+              </button>
+            </div>
+          </div>
+        )}
+
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
+      </div>
+    </div>
+  );
+}
+
+// Enhanced Report Modal Component
+function ReportModal({ isOpen, position, onClose, onSubmit }) {
+  const [severity, setSeverity] = useState('Medium');
+  const [photo, setPhoto] = useState(null);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const reportData = {
+        lat: position.lat,
+        lng: position.lng,
+        severity: severity,
+        image_base64: photo
+      };
+      
+      await onSubmit(reportData);
+      
+      // Reset form
+      setSeverity('Medium');
+      setPhoto(null);
+      onClose();
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      alert('Failed to submit report. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      <div className="report-modal">
+        <div className="report-modal-content">
+          <div className="report-modal-header">
+            <h3>🌊 Report Waterlogging</h3>
+            <button onClick={onClose} className="close-btn">✕</button>
+          </div>
+
+          <div className="report-form">
+            <div className="location-info">
+              <p><strong>📍 Location:</strong></p>
+              <p>{position?.lat.toFixed(4)}, {position?.lng.toFixed(4)}</p>
+            </div>
+
+            <div className="severity-section">
+              <label><strong>⚡ Severity Level:</strong></label>
+              <div className="severity-options">
+                {['Low', 'Medium', 'Severe'].map(level => (
+                  <button
+                    key={level}
+                    className={`severity-btn ${severity === level ? 'active' : ''} ${level.toLowerCase()}`}
+                    onClick={() => setSeverity(level)}
+                  >
+                    {level === 'Low' && '🟢'} 
+                    {level === 'Medium' && '🟡'} 
+                    {level === 'Severe' && '🔴'} 
+                    {level}
+                  </button>
+                ))}
+              </div>
+              <div className="severity-description">
+                {severity === 'Low' && '💧 Minor puddles, vehicles can pass with care'}
+                {severity === 'Medium' && '🌊 Significant water, slow down traffic'}
+                {severity === 'Severe' && '🚫 Deep water, dangerous to cross'}
+              </div>
+            </div>
+
+            <div className="photo-section">
+              <label><strong>📸 Visual Proof (Optional):</strong></label>
+              {photo ? (
+                <div className="photo-attached">
+                  <img src={photo} alt="Attached" className="attached-preview" />
+                  <button 
+                    onClick={() => setPhoto(null)} 
+                    className="remove-photo-btn"
+                  >
+                    ❌ Remove Photo
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setShowPhotoModal(true)} 
+                  className="add-photo-btn"
+                >
+                  📷 Add Photo Proof
+                </button>
+              )}
+              <p className="photo-hint">Photos help verify the situation for other users</p>
+            </div>
+
+            <div className="report-actions">
+              <button 
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="submit-report-btn"
+              >
+                {isSubmitting ? '📤 Submitting...' : '📤 Submit Report'}
+              </button>
+              <button onClick={onClose} className="cancel-report-btn">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <PhotoUploadModal
+        isOpen={showPhotoModal}
+        onClose={() => setShowPhotoModal(false)}
+        onPhotoSelect={setPhoto}
+      />
+    </>
+  );
+}
+
+// Component for handling location centering and reporting
 function LocationMarker({ setReports, reports, userLocation }) {
   const map = useMap();
-  const [isReporting, setIsReporting] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [clickedPosition, setClickedPosition] = useState(null);
 
   // Center map on user location when available
   useEffect(() => {
@@ -58,47 +343,48 @@ function LocationMarker({ setReports, reports, userLocation }) {
     }
   }, [userLocation, map]);
 
+  const handleReportSubmit = async (reportData) => {
+    try {
+      const response = await axios.post(API_URL, reportData, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      setReports(prevReports => [...prevReports, response.data]);
+      alert(`✅ Waterlogging report submitted successfully!${reportData.image_base64 ? ' 📸 Photo included!' : ''}`);
+    } catch (error) {
+      console.error("Error posting report:", error);
+      throw error;
+    }
+  };
+
   useMapEvents({
     click(e) {
-      if (isReporting) return; // Prevent multiple clicks
-      
       const { lat, lng } = e.latlng;
-      
-      // Show severity selection modal
-      const severity = window.prompt(
-        "Select severity level:\n• Low - Minor puddles, passable\n• Medium - Significant water, slow traffic\n• Severe - Deep water, avoid area\n\nEnter: Low, Medium, or Severe", 
-        "Medium"
-      );
-      
-      if (severity && ['Low', 'Medium', 'Severe'].includes(severity)) {
-        setIsReporting(true);
-        
-        axios.post(API_URL, { lat, lng, severity })
-          .then(response => {
-            // Add new report to the map instantly
-            setReports(prevReports => [...prevReports, response.data]);
-            alert(`✅ Waterlogging report submitted successfully!\nLocation: ${lat.toFixed(4)}, ${lng.toFixed(4)}\nSeverity: ${severity}`);
-          })
-          .catch(error => {
-            console.error("Error posting report:", error);
-            alert("❌ Failed to submit report. Please try again.");
-          })
-          .finally(() => {
-            setIsReporting(false);
-          });
-      }
+      setClickedPosition({ lat, lng });
+      setShowReportModal(true);
     }
   });
   
-  return userLocation ? (
-    <Marker position={[userLocation.lat, userLocation.lng]} icon={new L.Icon({
-      iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iOCIgZmlsbD0iIzAwN2JmZiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+CjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjMiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=',
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
-    })}>
-      <Popup>📍 Your Location</Popup>
-    </Marker>
-  ) : null;
+  return (
+    <>
+      {userLocation && (
+        <Marker position={[userLocation.lat, userLocation.lng]} icon={new L.Icon({
+          iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iOCIgZmlsbD0iIzAwN2JmZiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+CjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjMiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })}>
+          <Popup>📍 Your Location</Popup>
+        </Marker>
+      )}
+      
+      <ReportModal
+        isOpen={showReportModal}
+        position={clickedPosition}
+        onClose={() => setShowReportModal(false)}
+        onSubmit={handleReportSubmit}
+      />
+    </>
+  );
 }
 
 // Comments Component
@@ -216,7 +502,7 @@ const MapComponent = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [timeFilter, setTimeFilter] = useState('24h');
-  const [viewMode, setViewMode] = useState('markers'); // 'markers' or 'heatmap'
+  const [viewMode, setViewMode] = useState('markers');
   const [userLocation, setUserLocation] = useState(null);
   const [showComments, setShowComments] = useState(null);
   
@@ -289,28 +575,16 @@ const MapComponent = () => {
 
   const getSeverityColor = (severity) => {
     switch (severity) {
-      case 'Low': return '#28a745'; // Green
-      case 'Medium': return '#ffc107'; // Yellow
-      case 'Severe': return '#dc3545'; // Red
-      default: return '#007bff'; // Blue
+      case 'Low': return '#28a745';
+      case 'Medium': return '#ffc107';
+      case 'Severe': return '#dc3545';
+      default: return '#007bff';
     }
   };
 
-  const getSeverityWeight = (severity) => {
-    switch (severity) {
-      case 'Low': return 0.3;
-      case 'Medium': return 0.6;
-      case 'Severe': return 1.0;
-      default: return 0.5;
-    }
+  const hasPhoto = (report) => {
+    return report.image_url || report.image_base64;
   };
-
-  // Prepare heatmap data
-  const heatmapData = reports.map(report => ({
-    lat: report.lat,
-    lng: report.lng,
-    intensity: getSeverityWeight(report.severity)
-  }));
 
   if (isLoading) {
     return (
@@ -327,6 +601,9 @@ const MapComponent = () => {
         <div className="map-info">
           <div className="report-count">
             📍 {reports.length} active reports
+            <span className="photo-count">
+              • 📸 {reports.filter(hasPhoto).length} with photos
+            </span>
             {lastUpdated && (
               <span className="last-updated">
                 • Updated: {lastUpdated.toLocaleTimeString()}
@@ -355,6 +632,8 @@ const MapComponent = () => {
               <button 
                 className={viewMode === 'heatmap' ? 'active' : ''}
                 onClick={() => setViewMode('heatmap')}
+                disabled
+                title="Heatmap view - coming soon!"
               >
                 🔥 Heatmap
               </button>
@@ -404,20 +683,7 @@ const MapComponent = () => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         
-        {/*viewMode === 'heatmap' && heatmapData.length > 0 && (
-          <HeatmapLayer
-            fitBoundsOnLoad
-            fitBoundsOnUpdate
-            points={heatmapData}
-            longitudeExtractor={m => m.lng}
-            latitudeExtractor={m => m.lat}
-            intensityExtractor={m => m.intensity}
-            radius={20}
-            max={1}
-          />
-        )*/}
-        
-        {viewMode === 'markers' && reports.map(report => (
+        {reports.map(report => (
           <Marker 
             key={report.id} 
             position={[report.lat, report.lng]}
@@ -430,7 +696,18 @@ const MapComponent = () => {
                   {report.severity === 'Medium' && '🟡'} 
                   {report.severity === 'Severe' && '🔴'} 
                   {report.severity} Waterlogging
+                  {hasPhoto(report) && <span className="photo-indicator"> 📸</span>}
                 </h3>
+                
+                {hasPhoto(report) && (
+                  <div className="popup-photo">
+                    <img 
+                      src={report.image_url || report.image_base64} 
+                      alt="Waterlogging evidence" 
+                      className="popup-image"
+                    />
+                  </div>
+                )}
                 
                 <p className="popup-details">
                   📍 <strong>Location:</strong><br/>
@@ -500,9 +777,9 @@ const MapComponent = () => {
       
       <div className="map-instructions">
         <p>
-          💡 <strong>How to use:</strong> Click anywhere on the map to report waterlogging. 
-          Toggle between marker and heatmap views. Filter by time, vote on accuracy, and add comments for context. 
-          Reports auto-expire after 24 hours.
+          💡 <strong>How to use:</strong> Click anywhere on the map to report waterlogging with optional photo proof. 
+          Filter by time, vote on accuracy, and add comments for context. Reports auto-expire after 24 hours.
+          📸 <strong>New:</strong> Add photos as visual evidence when reporting!
         </p>
       </div>
     </div>

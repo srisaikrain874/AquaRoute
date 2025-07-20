@@ -1,4 +1,4 @@
-/* AquaRoute Styles */
+/* AquaRoute Styles - Enhanced with Photo Upload */
 .App {
   text-align: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -91,6 +91,11 @@
   font-size: 16px;
 }
 
+.photo-count {
+  color: #17a2b8;
+  font-weight: 500;
+}
+
 .last-updated {
   color: #6c757d;
   font-size: 14px;
@@ -130,9 +135,15 @@
 }
 
 .view-toggle button.active,
-.view-toggle button:hover {
+.view-toggle button:hover:not(:disabled) {
   background: #007bff;
   color: white;
+}
+
+.view-toggle button:disabled {
+  background: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
 }
 
 .action-buttons {
@@ -214,14 +225,39 @@
   100% { transform: rotate(360deg); }
 }
 
+/* Enhanced Popup Styles with Photo Support */
 .popup-content {
   text-align: left;
-  min-width: 220px;
+  min-width: 250px;
+  max-width: 300px;
 }
 
 .popup-content h3 {
   font-size: 16px;
   font-weight: 600;
+}
+
+.photo-indicator {
+  background: #17a2b8;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.popup-photo {
+  margin: 10px 0;
+}
+
+.popup-image {
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
 .popup-details {
@@ -309,6 +345,390 @@
   border-left-color: var(--severity-color);
 }
 
+/* Photo Upload Modal Styles */
+.photo-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+}
+
+.photo-modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.photo-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+  background: #f8f9fa;
+}
+
+.photo-modal-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.photo-options {
+  display: flex;
+  gap: 10px;
+  padding: 20px;
+  justify-content: center;
+}
+
+.camera-btn, .file-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  flex: 1;
+  max-width: 150px;
+}
+
+.camera-btn:hover, .file-btn:hover {
+  background: #0056b3;
+  transform: translateY(-2px);
+}
+
+.camera-section {
+  padding: 20px;
+  text-align: center;
+}
+
+.camera-video {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.camera-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.capture-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.capture-btn:hover {
+  background: #218838;
+  transform: scale(1.05);
+}
+
+.cancel-camera-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.photo-preview {
+  padding: 20px;
+  text-align: center;
+}
+
+.preview-image {
+  width: 100%;
+  max-width: 400px;
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.preview-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.upload-photo-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.upload-photo-btn:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-1px);
+}
+
+.upload-photo-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.retake-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* Report Modal Styles */
+.report-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.report-modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.report-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+  background: #f8f9fa;
+}
+
+.report-modal-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #999;
+  padding: 5px;
+  transition: color 0.3s ease;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.report-form {
+  padding: 20px;
+}
+
+.location-info {
+  background: #e7f3ff;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #007bff;
+}
+
+.location-info p {
+  margin: 5px 0;
+  color: #495057;
+}
+
+.severity-section {
+  margin-bottom: 20px;
+}
+
+.severity-section label {
+  display: block;
+  margin-bottom: 10px;
+  color: #495057;
+}
+
+.severity-options {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.severity-btn {
+  flex: 1;
+  padding: 10px;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.severity-btn.active.low,
+.severity-btn:hover.low {
+  border-color: #28a745;
+  background: #d4edda;
+  color: #155724;
+}
+
+.severity-btn.active.medium,
+.severity-btn:hover.medium {
+  border-color: #ffc107;
+  background: #fff3cd;
+  color: #856404;
+}
+
+.severity-btn.active.severe,
+.severity-btn:hover.severe {
+  border-color: #dc3545;
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.severity-description {
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #495057;
+  text-align: center;
+}
+
+.photo-section {
+  margin-bottom: 20px;
+}
+
+.photo-section label {
+  display: block;
+  margin-bottom: 10px;
+  color: #495057;
+}
+
+.add-photo-btn {
+  background: #17a2b8;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.add-photo-btn:hover {
+  background: #138496;
+  transform: translateY(-1px);
+}
+
+.photo-attached {
+  text-align: center;
+}
+
+.attached-preview {
+  width: 100%;
+  max-width: 300px;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.remove-photo-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.photo-hint {
+  font-size: 12px;
+  color: #6c757d;
+  text-align: center;
+  margin-top: 10px;
+  font-style: italic;
+}
+
+.report-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.submit-report-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  flex: 2;
+  transition: all 0.3s ease;
+}
+
+.submit-report-btn:hover:not(:disabled) {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.submit-report-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.cancel-report-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  flex: 1;
+}
+
 /* Comments Modal Styles */
 .comments-modal {
   position: fixed;
@@ -344,20 +764,6 @@
 
 .comments-header h3 {
   margin: 0;
-  color: #333;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: #999;
-  padding: 5px;
-  transition: color 0.3s ease;
-}
-
-.close-btn:hover {
   color: #333;
 }
 
@@ -538,9 +944,19 @@
     height: 60vh !important;
   }
   
-  .comments-content {
+  .report-modal-content,
+  .comments-content,
+  .photo-modal-content {
     width: 95%;
     margin: 10px;
+  }
+
+  .severity-options {
+    flex-direction: column;
+  }
+
+  .report-actions {
+    flex-direction: column;
   }
 }
 
@@ -559,8 +975,16 @@
     height: 50vh !important;
   }
   
-  .view-toggle {
-    flex-direction: column;
+  .camera-video {
+    max-width: 100%;
+  }
+  
+  .preview-image {
+    max-width: 100%;
+  }
+  
+  .attached-preview {
+    max-width: 100%;
   }
 }
 
@@ -585,7 +1009,8 @@
 /* Focus states for accessibility */
 .vote-btn:focus,
 .comments-btn:focus,
-.submit-comment-btn:focus {
+.submit-comment-btn:focus,
+.submit-report-btn:focus {
   outline: 2px solid #007bff;
   outline-offset: 2px;
 }
