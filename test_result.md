@@ -135,6 +135,54 @@ backend:
         agent: "testing"
         comment: "TTL INDEX VERIFICATION COMPLETED - Successfully verified TTL index exists on expires_at field with expireAfterSeconds=0 configuration. Index is properly created during startup event. MongoDB collection 'waterlogging_reports' is operational with 5 test documents. Auto-expiring mechanism is correctly implemented and functional."
 
+  - task: "Comments System API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "NEW FEATURE TESTING COMPLETED - Comments System fully functional. All 8 comment tests passed: GET /api/reports/{report_id}/comments returns empty list initially, POST /api/reports/{report_id}/comments creates comments with all required fields (id, report_id, text, author, created_at), preserves text and author data, links to correct report, returns posted comments in GET requests, enforces 200 character text limit (422 validation error), and returns 404 for non-existent reports. Data persistence and integrity verified."
+
+  - task: "Voting System API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "NEW FEATURE TESTING COMPLETED - Voting System fully functional. All 5 voting tests passed: New reports initialize with accuracy_score=0 and total_votes=0, POST vote 'up' correctly increases accuracy_score and total_votes, POST vote 'down' decreases accuracy_score and increases total_votes, invalid vote_type returns 400 error, and voting on non-existent reports returns 404. Vote counting logic and error handling working correctly."
+
+  - task: "Time-Based Filtering API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "NEW FEATURE TESTING COMPLETED - Time-Based Filtering fully functional. All 5 time filter tests passed: GET /api/reports?time_filter=1h|6h|24h all return proper list format, invalid time filter defaults to 24h gracefully, and fresh reports appear correctly in 1h time filter. Time-based query logic working as expected with proper fallback handling."
+
+  - task: "Enhanced Report Model with Voting Fields"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "NEW FEATURE TESTING COMPLETED - Enhanced report model verified. Reports now include accuracy_score (int, default 0) and total_votes (int, default 0) fields. Integration with voting system confirmed - vote counts update correctly and persist in database. Model enhancement working seamlessly with existing functionality."
+
 frontend:
   - task: "Interactive Leaflet Map Component"
     implemented: true
